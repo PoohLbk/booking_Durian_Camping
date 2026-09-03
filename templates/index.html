@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จองที่พัก - Durian Hillside Camping</title>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2E7D32; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="date"], input[type="text"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background-color: #45a049; }
+        .available-rooms { margin-top: 20px; padding: 15px; background-color: #e8f5e9; border-radius: 4px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🌲 จองที่พัก Durian Hillside Camping 🌲</h2>
+    
+    <div class="form-group">
+        <label>วันที่เข้าพัก (Check-in):</label>
+        <input type="date" id="checkin" onchange="checkAvailability()">
+    </div>
+    
+    <div class="form-group">
+        <label>วันที่ออก (Check-out):</label>
+        <input type="date" id="checkout" onchange="checkAvailability()">
+    </div>
+
+    <!-- ส่วนนี้จะแสดงขึ้นมาเมื่อมีห้องว่าง -->
+    <div id="booking-section" class="available-rooms">
+        <div class="form-group">
+            <label>ห้องพัก/ลานกางเต็นท์ ที่ว่าง:</label>
+            <select id="room_select"></select>
+        </div>
+        <div class="form-group">
+            <label>ชื่อลูกค้า:</label>
+            <input type="text" id="customer_name" placeholder="ชื่อ-นามสกุล เบอร์ติดต่อ">
+        </div>
+        <button onclick="submitBooking()">ยืนยันการจอง</button>
+    </div>
+</div>
+
+<script>
+    async function checkAvailability() {
+        const checkin = document.getElementById('checkin').value;
+        const checkout = document.getElementById('checkout').value;
+        
+        if(checkin && checkout) {
+            if(new Date(checkin) >= new Date(checkout)) {
+                alert("วันที่ออกต้องอยู่หลังวันที่เข้าพัก");
+                return;
+            }
+
+            // เรียกใช้ API เช็คห้องว่างที่เราเขียนไว้ใน Python
+            const response = await fetch(`/api/availability?check_in=${checkin}&check_out=${checkout}`);
+            const rooms = await response.json();
+
+            const roomSelect = document.getElementById('room_select');
+            roomSelect.innerHTML = ''; // ล้างค่าเดิม
+            
+            if(rooms.length > 0) {
+                rooms.forEach(room => {
+                    const option = document.createElement('option');
+                    option.value = room.id;
+                    option.text = room.room_name;
+                    roomSelect.appendChild(option);
+                });
+                document.getElementById('booking-section').style.display = 'block';
+            } else {
+                document.getElementById('booking-section').style.display = 'none';
+                alert("ขออภัย ไม่มีที่พักว่างในช่วงเวลาดังกล่าว");
+            }
+        }
+    }
+
+    async function submitBooking() {
+        const payload = {
+            room_id: document.getElementById('room_select').value,
+            customer_name: document.getElementById('customer_name').value,
+            check_in: document.getElementById('checkin').value,
+            check_out: document.getElementById('checkout').value
+        };
+
+        if(!payload.customer_name) {
+            alert("กรุณากรอกชื่อลูกค้า");
+            return;
+        }
+
+        // ส่งข้อมูลไปบันทึกผ่าน API
+        const response = await fetch('/api/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if(response.ok) {
+            alert("จองห้องพักสำเร็จ! ขอบคุณที่เลือก Durian Hillside Camping ครับ");
+            location.reload(); // โหลดหน้าใหม่
+        } else {
+            const errorData = await response.json();
+            alert(errorData.error);
+        }
+    }
+</script>
+
+</body>
+</html>
