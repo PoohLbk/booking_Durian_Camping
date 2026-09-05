@@ -119,6 +119,27 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(send_maid_schedule_email, 'cron', day_of_week='sun', hour=8, minute=0)
 scheduler.start()
 
+@app.route('/admin')
+def admin_view():
+    conn = get_db_connection()
+    bookings = conn.execute('''
+        SELECT r.room_name, b.customer_name, b.check_in, b.check_out 
+        FROM bookings b
+        JOIN rooms r ON b.room_id = r.id
+        ORDER BY b.check_in ASC
+    ''').fetchall()
+    conn.close()
+    
+    html = "<h2 style='font-family:sans-serif;'>ตารางสรุปการจองทั้งหมด</h2>"
+    html += "<table border='1' cellpadding='10' style='border-collapse: collapse; font-family:sans-serif; text-align: left;'>"
+    html += "<tr style='background-color:#4CAF50; color:white;'><th>ห้อง/ลานกางเต็นท์</th><th>ชื่อลูกค้า</th><th>วันเข้าพัก</th><th>วันออก</th></tr>"
+    
+    for b in bookings:
+        html += f"<tr><td>{b['room_name']}</td><td>{b['customer_name']}</td><td>{b['check_in']}</td><td>{b['check_out']}</td></tr>"
+    html += "</table>"
+    
+    return html
+
 if __name__ == '__main__':
     # รันเซิร์ฟเวอร์
     app.run(debug=True, use_reloader=False)
